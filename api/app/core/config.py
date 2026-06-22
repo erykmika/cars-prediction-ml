@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "cars-prediction-api"
     environment: str = "local"
     log_level: str = "INFO"
-    model_path: Path = Field(default=Path("models/model.joblib"))
+    model_path: Path = Field(default=Path("models/poland_used_cars_linear_regression.joblib"))
     model_version: str = "unknown"
 
     model_config = SettingsConfigDict(

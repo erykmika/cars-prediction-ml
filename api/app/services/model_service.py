@@ -1,8 +1,12 @@
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import joblib
 import numpy as np
+import pandas as pd
+
+from app.schemas.prediction import FeatureValue
 
 
 class ModelNotReadyError(RuntimeError):
@@ -22,6 +26,9 @@ class ModelService:
         self.model_path = model_path
         self.model_version = model_version
         self.model: Any | None = None
+        self.feature_columns: list[str] | None = None
+        self.target_column: str | None = None
+        self.metrics: dict[str, Any] = {}
         self.load_error: str | None = None
 
     @property
@@ -43,16 +50,59 @@ class ModelService:
             return
 
         try:
-            self.model = joblib.load(resolved_path)
+            loaded_artifact = joblib.load(resolved_path)
+            self._apply_loaded_artifact(loaded_artifact)
             self.load_error = None
         except Exception as exc:
             self.model = None
             self.load_error = f"Failed to load model: {exc}"
 
-    def predict(self, features: list[float]) -> float | int | str | list[float | int | str]:
+    def predict(
+        self,
+        features: Mapping[str, FeatureValue] | list[float],
+    ) -> float | int | str | list[float | int | str]:
         if not self.is_ready:
             detail = self.load_error or "Model has not been loaded."
             raise ModelNotReadyError(detail)
+
+        model_input = self._build_model_input(features)
+
+        try:
+            raw_prediction = self.model.predict(model_input)
+        except ValueError as exc:
+            raise InvalidInputShapeError(f"Invalid input shape: {exc}") from exc
+        except Exception as exc:
+            raise ModelInferenceError(f"Model inference failed: {exc}") from exc
+
+        return self._serialize_prediction(raw_prediction)
+
+    def _apply_loaded_artifact(self, loaded_artifact: Any) -> None:
+        if isinstance(loaded_artifact, dict) and "model" in loaded_artifact:
+            self.model = loaded_artifact["model"]
+            self.feature_columns = loaded_artifact.get("feature_columns")
+            self.target_column = loaded_artifact.get("target_column")
+            self.metrics = loaded_artifact.get("metrics", {})
+            self.model_version = loaded_artifact.get("model_version", self.model_version)
+            return
+
+        self.model = loaded_artifact
+        self.feature_columns = None
+        self.target_column = None
+        self.metrics = {}
+
+    def _build_model_input(
+        self,
+        features: Mapping[str, FeatureValue] | list[float],
+    ) -> pd.DataFrame | np.ndarray:
+        if isinstance(features, Mapping):
+            return self._to_feature_frame(features)
+
+        if self.feature_columns is not None:
+            if len(features) != len(self.feature_columns):
+                raise InvalidInputShapeError(
+                    f"Expected {len(self.feature_columns)} features, received {len(features)}."
+                )
+            return pd.DataFrame([features], columns=self.feature_columns)
 
         feature_array = self._to_feature_array(features)
         expected_features = getattr(self.model, "n_features_in_", None)
@@ -62,14 +112,26 @@ class ModelService:
                 f"Expected {expected_features} features, received {feature_array.shape[1]}."
             )
 
-        try:
-            raw_prediction = self.model.predict(feature_array)
-        except ValueError as exc:
-            raise InvalidInputShapeError(f"Invalid input shape: {exc}") from exc
-        except Exception as exc:
-            raise ModelInferenceError(f"Model inference failed: {exc}") from exc
+        return feature_array
 
-        return self._serialize_prediction(raw_prediction)
+    def _to_feature_frame(self, features: Mapping[str, FeatureValue]) -> pd.DataFrame:
+        if not self.feature_columns:
+            return pd.DataFrame([dict(features)])
+
+        missing_features = sorted(set(self.feature_columns) - set(features))
+        extra_features = sorted(set(features) - set(self.feature_columns))
+
+        if missing_features:
+            raise InvalidInputShapeError(
+                "Missing required feature columns: " + ", ".join(missing_features)
+            )
+
+        if extra_features:
+            raise InvalidInputShapeError(
+                "Received unknown feature columns: " + ", ".join(extra_features)
+            )
+
+        return pd.DataFrame([{column: features[column] for column in self.feature_columns}])
 
     def _to_feature_array(self, features: list[float]) -> np.ndarray:
         try:

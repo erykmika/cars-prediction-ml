@@ -1,44 +1,62 @@
-# Cars Prediction ML API
+# Cars Prediction ML
 
-FastAPI service for serving scikit-learn car prediction models.
+Machine learning project for training and serving Poland used-car price predictions.
 
-## Run Locally
+The repository is split into two independent parts:
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
+- `training/` trains a scikit-learn `LinearRegression` pipeline on the Kaggle Poland used cars
+  offers dataset.
+- `api/` serves the trained model through a FastAPI prediction service.
+
+## Project Layout
+
+```text
+cars-prediction-ml/
+├── api/
+│   ├── app/
+│   ├── models/
+│   ├── tests/
+│   ├── Dockerfile
+│   └── Makefile
+└── training/
+    ├── data/
+    ├── models/
+    ├── src/
+    └── Makefile
 ```
 
-The service expects a trained model at `models/model.joblib` by default. Override it with
-`MODEL_PATH=/path/to/model.pkl`.
-
-## API
-
-Health:
+## Training Flow
 
 ```bash
-curl http://localhost:8000/health
+cd training
+cp .env.example .env
+make fetch-data
+make all DATA_PATH=data/data.csv
 ```
 
-Prediction:
+`make all` trains the model and copies the resulting artifact to
+`api/models/poland_used_cars_linear_regression.joblib`.
+
+The training target column is `price_in_pln`. All other dataset columns are used as features.
+
+## API Flow
+
+```bash
+cd api
+make test
+make lint
+make docker-run
+```
+
+The API loads `models/poland_used_cars_linear_regression.joblib` on startup and exposes:
+
+- `GET /health`
+- `POST /predict`
+
+Example prediction payload:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d '{"features":[2018,45000,1.6,110,5]}'
+  -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":"195 000 km","gearbox":"manual","engine_capacity":"1 598 cm3","fuel_type":"Benzyna","city":"Warszawa","voivodeship":"Mazowieckie","year":1998}}'
 ```
-
-## Docker
-
-```bash
-docker build -t cars-prediction-api .
-docker run --rm -p 8000:8000 \
-  -e MODEL_PATH=models/model.joblib \
-  cars-prediction-api
-```
-
-## Configuration
-
-See `.env.example` for supported environment variables.

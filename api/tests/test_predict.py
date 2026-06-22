@@ -10,6 +10,11 @@ class DummyModel:
         return [rows[0][0] + rows[0][1]]
 
 
+class DummyFrameModel:
+    def predict(self, rows):
+        return [rows.iloc[0]["year"] - rows.iloc[0]["mileage"]]
+
+
 def test_predict_returns_prediction_with_loaded_model() -> None:
     with TestClient(app) as client:
         app.state.model_service.model = DummyModel()
@@ -22,6 +27,18 @@ def test_predict_returns_prediction_with_loaded_model() -> None:
     assert payload["prediction"] == 25
     assert payload["model_version"] == "unknown"
     assert payload["request_id"]
+
+
+def test_predict_accepts_trained_model_feature_mapping() -> None:
+    with TestClient(app) as client:
+        app.state.model_service.model = DummyFrameModel()
+        app.state.model_service.feature_columns = ["year", "mileage"]
+        app.state.model_service.load_error = None
+
+        response = client.post("/predict", json={"features": {"year": 2020, "mileage": 500}})
+
+    assert response.status_code == 200
+    assert response.json()["prediction"] == 1520
 
 
 def test_predict_rejects_invalid_feature_count() -> None:

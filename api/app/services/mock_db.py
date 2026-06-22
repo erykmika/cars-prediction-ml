@@ -2,15 +2,17 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from app.schemas.prediction import FeatureValue
 
-class MockPredictionRepository:
+
+class MockPredictionRepository: # TODO: use
     def __init__(self) -> None:
         self._records: list[dict[str, Any]] = []
 
     def save_prediction(
         self,
         *,
-        features: list[float],
+        features: dict[str, FeatureValue] | list[float],
         prediction: float | int | str | list[float | int | str],
     ) -> dict[str, Any]:
         record = {
