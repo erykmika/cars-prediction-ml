@@ -26,9 +26,9 @@ curl http://localhost:8000/health
 Prediction:
 
 ```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":"195 000 km","gearbox":"manual","engine_capacity":"1 598 cm3","fuel_type":"Benzyna","city":"Warszawa","voivodeship":"Mazowieckie","year":1998}}'
+ curl -X POST http://localhost:8000/predict \
+ -H "Content-Type: application/json" \
+ -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":"195000","gearbox":"manual","engine_capacity":"1598","fuel_type":"Benzyna","year":1998}}'
 ```
 
 ## Docker

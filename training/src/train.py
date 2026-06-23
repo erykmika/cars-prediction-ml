@@ -1,5 +1,7 @@
 import argparse
 import json
+import logging
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET_COLUMN = "price_in_pln"
-
+NUMERIC_FEATURE_COLUMNS = frozenset({"mileage", "engine_capacity", "year"})
+NUMERIC_COLUMN_UNITS = {
+    "mileage": r"km",
+    "engine_capacity": r"cm3|cm³",
+}
+LOGGER = logging.getLogger(__name__)
+FEATURES_TO_DROP = frozenset({"voivodeship", "city"})
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -31,6 +39,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     args = parse_args()
     data = load_dataset(args.data_path, max_rows=args.max_rows)
     features, target = prepare_training_data(data, TARGET_COLUMN)
@@ -41,6 +51,11 @@ def main() -> None:
         test_size=args.test_size,
         random_state=args.random_state,
     )
+
+    # scale output feature logarithmically
+    _map_func = lambda y: math.log10(y)
+    y_train: pd.Series = y_train.map(func=_map_func)
+    y_test: pd.Series = y_test.map(func=_map_func)
 
     pipeline = build_pipeline(features)
     pipeline.fit(x_train, y_train)
@@ -61,8 +76,8 @@ def main() -> None:
     joblib.dump(artifact, args.model_path)
     write_metrics(args.model_path, metrics)
 
-    print(f"Saved model artifact to {args.model_path}")
-    print(json.dumps(metrics, indent=2, sort_keys=True))
+    LOGGER.info(f"Saved model artifact to {args.model_path}")
+    LOGGER.info(f"{json.dumps(metrics, indent=2, sort_keys=True)}")
 
 
 def load_dataset(data_path: Path, *, max_rows: int | None) -> pd.DataFrame:
@@ -80,12 +95,15 @@ def prepare_training_data(data: pd.DataFrame, target_column: str) -> tuple[pd.Da
         raise ValueError(f"Target column '{target_column}' is not present in the dataset.")
 
     working_data = data.copy()
-    working_data[target_column] = coerce_numeric_series(working_data[target_column])
+    working_data[target_column] = coerce_numeric_series(
+        working_data[target_column],
+        column_name=target_column,
+    )
     working_data = working_data.dropna(subset=[target_column])
     working_data = working_data[working_data[target_column] > 0]
     working_data = working_data.dropna(axis=1, how="all")
 
-    features = working_data.drop(columns=[target_column])
+    features = working_data.drop(columns=[target_column] + list(FEATURES_TO_DROP))
     target = working_data[target_column]
 
     if features.empty:
@@ -97,19 +115,27 @@ def prepare_training_data(data: pd.DataFrame, target_column: str) -> tuple[pd.Da
 def normalize_feature_values(features: pd.DataFrame) -> pd.DataFrame:
     normalized = features.copy()
 
-    for column in normalized.columns:
-        if normalized[column].dtype == "object":
-            numeric_candidate = coerce_numeric_series(normalized[column])
-            non_null_ratio = numeric_candidate.notna().mean()
-            if non_null_ratio >= 0.85:
-                normalized[column] = numeric_candidate
+    for column in NUMERIC_FEATURE_COLUMNS.intersection(normalized.columns):
+        normalized[column] = coerce_numeric_series(
+            normalized[column],
+            column_name=column,
+        )
 
     return normalized
 
 
-def coerce_numeric_series(series: pd.Series) -> pd.Series:
+def coerce_numeric_series(series: pd.Series, *, column_name: str) -> pd.Series:
+    if pd.api.types.is_numeric_dtype(series):
+        return pd.to_numeric(series, errors="coerce")
+
+    unit_pattern = NUMERIC_COLUMN_UNITS.get(column_name)
+    text = series.astype("string").str.strip()
+    if unit_pattern is not None:
+        text = text.str.replace(rf"\s*(?:{unit_pattern})\s*$", "", regex=True, case=False)
+
     cleaned = (
-        series.astype(str)
+        text
+        .str.replace(r"\s+", "", regex=True)
         .str.replace(r"[^\d,.\-]", "", regex=True)
         .str.replace(",", ".", regex=False)
         .replace("", np.nan)
@@ -120,6 +146,8 @@ def coerce_numeric_series(series: pd.Series) -> pd.Series:
 def build_pipeline(features: pd.DataFrame) -> Pipeline:
     numeric_features = features.select_dtypes(include=["number", "bool"]).columns.tolist()
     categorical_features = [column for column in features.columns if column not in numeric_features]
+
+    LOGGER.info(f"numeric_features={numeric_features}, categorical_features={categorical_features}")
 
     numeric_pipeline = Pipeline(
         steps=[

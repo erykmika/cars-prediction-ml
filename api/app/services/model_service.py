@@ -1,3 +1,4 @@
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ class ModelInferenceError(RuntimeError):
 
 
 class ModelService:
+
     def __init__(self, *, model_path: Path, model_version: str = "unknown") -> None:
         self.model_path = model_path
         self.model_version = model_version
