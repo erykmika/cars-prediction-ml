@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 FeatureValue: TypeAlias = str | float | int | bool | None
 
 
-class PredictionRequest(BaseModel): # TODO add validation
+class PredictionRequest(BaseModel):  # TODO add validation
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

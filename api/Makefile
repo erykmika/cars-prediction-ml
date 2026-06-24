@@ -17,7 +17,8 @@ test: ## Run the test suite
 lint: ## Run Ruff lint checks
 	uv run --extra dev ruff check .
 
-format: ## Format code with Ruff
+format: ## Format code with Ruff and isort
+	isort .
 	uv run --extra dev ruff format .
 
 docker-build: ## Build the Docker image

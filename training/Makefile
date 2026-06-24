@@ -16,6 +16,13 @@ install: ## Install training dependencies
 fetch-data: ## Download the latest Kaggle dataset version
 	uv run python -m src.kaggle
 
+format: ## Format code with Ruff and isort
+	isort .
+	uv run --extra dev ruff format .
+
+lint: ## Run Ruff lint checks
+	uv run --extra dev ruff check .
+
 train: ## Train the linear regression model
 	uv run python -m src.train \
 		--data-path $(DATA_PATH) \

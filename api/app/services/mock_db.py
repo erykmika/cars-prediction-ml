@@ -5,7 +5,7 @@ from uuid import uuid4
 from app.schemas.prediction import FeatureValue
 
 
-class MockPredictionRepository: # TODO: use
+class MockPredictionRepository:  # TODO: use
     def __init__(self) -> None:
         self._records: list[dict[str, Any]] = []
 

@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",
+    "isort~=8.0.1"
 ]
 
 [tool.setuptools.packages.find]

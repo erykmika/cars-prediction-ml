@@ -26,6 +26,7 @@ NUMERIC_COLUMN_UNITS = {
 LOGGER = logging.getLogger(__name__)
 FEATURES_TO_DROP = frozenset({"voivodeship", "city"})
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train a Poland used cars linear regression model."
@@ -53,7 +54,9 @@ def main() -> None:
     )
 
     # scale output feature logarithmically
-    _map_func = lambda y: math.log10(y)
+    def _map_func(y):
+        math.log10(y)
+
     y_train: pd.Series = y_train.map(func=_map_func)
     y_test: pd.Series = y_test.map(func=_map_func)
 
@@ -134,8 +137,7 @@ def coerce_numeric_series(series: pd.Series, *, column_name: str) -> pd.Series:
         text = text.str.replace(rf"\s*(?:{unit_pattern})\s*$", "", regex=True, case=False)
 
     cleaned = (
-        text
-        .str.replace(r"\s+", "", regex=True)
+        text.str.replace(r"\s+", "", regex=True)
         .str.replace(r"[^\d,.\-]", "", regex=True)
         .str.replace(",", ".", regex=False)
         .replace("", np.nan)
