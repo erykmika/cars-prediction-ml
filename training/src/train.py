@@ -2,9 +2,10 @@ import argparse
 import json
 import logging
 import math
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import joblib
 import numpy as np

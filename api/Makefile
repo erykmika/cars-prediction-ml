@@ -15,7 +15,7 @@ test: ## Run the test suite
 	uv run --extra dev pytest -q
 
 lint: ## Run Ruff lint checks
-	uv run --extra dev ruff check .
+	uv run --extra dev ruff check . --fix
 
 format: ## Format code with Ruff and isort
 	isort .

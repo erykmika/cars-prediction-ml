@@ -21,7 +21,7 @@ format: ## Format code with Ruff and isort
 	uv run --extra dev ruff format .
 
 lint: ## Run Ruff lint checks
-	uv run --extra dev ruff check .
+	uv run --extra dev ruff check . --fix
 
 train: ## Train the linear regression model
 	uv run python -m src.train \
