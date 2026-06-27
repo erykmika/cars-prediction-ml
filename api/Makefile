@@ -24,12 +24,13 @@ format: ## Format code with Ruff and isort
 docker-build: ## Build the Docker image
 	docker build -t $(IMAGE_NAME) .
 
-docker-run: docker-build ## Run the API container
-	docker run --rm \
+docker-run: docker-stop docker-build ## Run the API container
+	docker run --rm -d \
 		--name $(CONTAINER_NAME) \
 		-p $(PORT):8000 \
 		-e MODEL_PATH=$(MODEL_PATH) \
 		$(IMAGE_NAME)
+	echo "API is running at http://localhost:$(PORT)"
 
 docker-stop: ## Stop the running API container
 	-docker stop $(CONTAINER_NAME)
