@@ -34,7 +34,7 @@ copy-model: ## Copy the trained model artifact into the API models directory
 	mkdir -p $(API_MODEL_DIR)
 	cp $(MODEL_PATH) $(API_MODEL_PATH)
 
-all: train copy-model ## Train and publish the model to the API
+all: fetch-data train copy-model ## Fetch dataset, train and publish the model to the API
 
 clean: ## Remove generated training artifacts
 	rm -rf models/*.joblib metrics/*.json

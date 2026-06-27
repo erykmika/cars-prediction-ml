@@ -25,6 +25,11 @@ cars-prediction-ml/
     └── Makefile
 ```
 
+## Run full pipeline (training a model + running the API with the model loaded)
+```bash
+run-full-pipeline
+```
+
 ## Training Flow
 
 ```bash
