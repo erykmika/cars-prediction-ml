@@ -32,5 +32,8 @@ docker-run: docker-stop docker-build ## Run the API container
 		$(IMAGE_NAME)
 	echo "API is running at http://localhost:$(PORT)"
 
+health-check: ## Check the health of the running API container
+	-curl -v http://localhost:8000/health
+
 docker-stop: ## Stop the running API container
 	-docker stop $(CONTAINER_NAME)
