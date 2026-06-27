@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import math
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,20 +25,6 @@ NUMERIC_COLUMN_UNITS = {
 }
 LOGGER = logging.getLogger(__name__)
 FEATURES_TO_DROP = frozenset({"voivodeship", "city"})
-
-
-class DescaledModel:
-    def __init__(self, model: Pipeline, operation: Callable) -> None:
-        self._model = model
-        self._operation = operation
-
-    def predict(self, x: Any) -> Any:
-        raw_prediction = self._model.predict(x)
-        return self._operation(raw_prediction)
-
-
-def _descale_prediction(p):
-    return math.pow(10, p)
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,7 +54,7 @@ def main() -> None:
     )
 
     # scale output feature logarithmically
-    def _map_func(y):
+    def _map_func(y: Any) -> Any:
         return math.log10(y)
 
     y_train: pd.Series = y_train.map(func=_map_func)
@@ -81,14 +66,13 @@ def main() -> None:
     predictions = pipeline.predict(x_test)
     metrics = build_metrics(y_test, predictions)
 
-    descaled_model = DescaledModel(pipeline, _descale_prediction)
-
     artifact = {
-        "model": descaled_model,
+        "model": pipeline,
         "model_type": "linear_regression",
         "model_version": datetime.now(UTC).strftime("%Y%m%d%H%M%S"),
         "feature_columns": features.columns.tolist(),
         "target_column": TARGET_COLUMN,
+        "output_transform": "pow10",
         "metrics": metrics,
         "trained_at": datetime.now(UTC).isoformat(),
     }

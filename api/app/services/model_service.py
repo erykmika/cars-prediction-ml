@@ -28,6 +28,7 @@ class ModelService:
         self.model: Any | None = None
         self.feature_columns: list[str] | None = None
         self.target_column: str | None = None
+        self.output_transform: str | None = None
         self.metrics: dict[str, Any] = {}
         self.load_error: str | None = None
 
@@ -74,6 +75,7 @@ class ModelService:
         except Exception as exc:
             raise ModelInferenceError(f"Model inference failed: {exc}") from exc
 
+        raw_prediction = self._apply_output_transform(raw_prediction)
         return self._serialize_prediction(raw_prediction)
 
     def _apply_loaded_artifact(self, loaded_artifact: Any) -> None:
@@ -81,6 +83,7 @@ class ModelService:
             self.model = loaded_artifact["model"]
             self.feature_columns = loaded_artifact.get("feature_columns")
             self.target_column = loaded_artifact.get("target_column")
+            self.output_transform = loaded_artifact.get("output_transform")
             self.metrics = loaded_artifact.get("metrics", {})
             self.model_version = loaded_artifact.get("model_version", self.model_version)
             return
@@ -88,6 +91,7 @@ class ModelService:
         self.model = loaded_artifact
         self.feature_columns = None
         self.target_column = None
+        self.output_transform = None
         self.metrics = {}
 
     def _build_model_input(
@@ -143,6 +147,14 @@ class ModelService:
             raise InvalidInputShapeError("Features must be a single one-dimensional vector.")
 
         return feature_array
+
+    def _apply_output_transform(self, raw_prediction: Any) -> Any:
+        if self.output_transform == "pow10":
+            try:
+                return np.power(10, raw_prediction)
+            except Exception as exc:
+                raise ModelInferenceError(f"Failed to apply output transformation: {exc}") from exc
+        return raw_prediction
 
     def _serialize_prediction(
         self,
