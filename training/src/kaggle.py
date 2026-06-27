@@ -17,7 +17,7 @@ class KaggleDatasetConnector:
         self.kaggle_api_token = os.getenv("KAGGLE_API_TOKEN")
 
     def fetch_latest(self) -> None:
-        kagglehub.dataset_download(self.dataset, output_dir="./data", force_download=True)
+        kagglehub.dataset_download(self.dataset, output_dir="./data/fetched", force_download=True)
 
 
 if __name__ == "__main__":

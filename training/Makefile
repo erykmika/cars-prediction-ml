@@ -1,4 +1,4 @@
-DATA_PATH ?= data/data.csv
+DATA_PATH ?= data/fetched/data.csv
 MODEL_PATH ?= models/poland_used_cars_linear_regression.joblib
 API_MODEL_DIR ?= ../api/models
 API_MODEL_PATH ?= $(API_MODEL_DIR)/poland_used_cars_linear_regression.joblib
