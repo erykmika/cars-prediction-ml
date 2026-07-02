@@ -5,3 +5,13 @@ run-full-pipeline:
 	echo "Waiting for the API to start..."
 	sleep 3
 	$(MAKE) -C api health-check
+
+format-all:
+	@echo "Formatting all code"
+	$(MAKE) -C training format
+	$(MAKE) -C api format
+
+lint-all:
+	@echo "Linting all code"
+	$(MAKE) -C training lint
+	$(MAKE) -C api lint
