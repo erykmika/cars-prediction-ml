@@ -86,7 +86,9 @@ def main() -> None:
         else:
             LOGGER.info("Skipping cross-validation because the training set is too small.")
     else:
-        LOGGER.info("Skipping cross-validation because cv-folds is disabled or training set is small.")
+        LOGGER.info(
+            "Skipping cross-validation because cv-folds is disabled or training set is small."
+        )
 
     pipeline.fit(x_train, y_train)
 
@@ -217,7 +219,9 @@ def build_pipeline(features: pd.DataFrame) -> Pipeline:
     )
 
 
-def build_cross_validation_metrics(cv_results: dict[str, list[float]]) -> dict[str, dict[str, float]]:
+def build_cross_validation_metrics(
+    cv_results: dict[str, list[float]],
+) -> dict[str, dict[str, float]]:
     summary: dict[str, dict[str, float]] = {}
 
     for metric_name, values in cv_results.items():

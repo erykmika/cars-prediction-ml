@@ -17,7 +17,7 @@ fetch-data: ## Download the latest Kaggle dataset version
 	uv run python -m src.kaggle
 
 format: ## Format code with Ruff and isort
-	isort .
+	uv run --extra dev isort .
 	uv run --extra dev ruff format .
 
 lint: ## Run Ruff lint checks

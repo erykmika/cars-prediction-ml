@@ -18,7 +18,7 @@ lint: ## Run Ruff lint checks
 	uv run --extra dev ruff check . --fix
 
 format: ## Format code with Ruff and isort
-	isort .
+	uv run --extra dev isort .
 	uv run --extra dev ruff format .
 
 docker-build: ## Build the Docker image
