@@ -13,7 +13,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--random-state", type=int, default=42)
     parser.add_argument("--max-rows", type=int, default=None)
+    parser.add_argument("--cv-folds", type=int, default=5)
     return parser.parse_args()
 
 
@@ -61,6 +62,32 @@ def main() -> None:
     y_test: pd.Series = y_test.map(func=_map_func)
 
     pipeline = build_pipeline(features)
+    cv_metrics = None
+    if args.cv_folds and len(x_train) >= 2:
+        cv_fold_count = min(args.cv_folds, len(x_train))
+        if cv_fold_count >= 2:
+            LOGGER.info(f"Running {cv_fold_count}-fold cross validation")
+            cv_results = cross_validate(
+                pipeline,
+                x_train,
+                y_train,
+                cv=KFold(n_splits=cv_fold_count, shuffle=True, random_state=args.random_state),
+                scoring={
+                    "mae": "neg_mean_absolute_error",
+                    "rmse": "neg_root_mean_squared_error",
+                    "r2": "r2",
+                },
+            )
+            cv_metrics = build_cross_validation_metrics(cv_results)
+            LOGGER.info(
+                "Cross-validation metrics:\n%s",
+                json.dumps(cv_metrics, indent=2, sort_keys=True),
+            )
+        else:
+            LOGGER.info("Skipping cross-validation because the training set is too small.")
+    else:
+        LOGGER.info("Skipping cross-validation because cv-folds is disabled or training set is small.")
+
     pipeline.fit(x_train, y_train)
 
     predictions = pipeline.predict(x_test)
@@ -74,6 +101,8 @@ def main() -> None:
         "target_column": TARGET_COLUMN,
         "output_transform": "pow10",
         "metrics": metrics,
+        "cross_validation_metrics": cv_metrics,
+        "cv_folds": cv_fold_count if cv_metrics is not None else None,
         "trained_at": datetime.now(UTC).isoformat(),
     }
 
@@ -186,6 +215,26 @@ def build_pipeline(features: pd.DataFrame) -> Pipeline:
             ("regressor", LinearRegression()),
         ]
     )
+
+
+def build_cross_validation_metrics(cv_results: dict[str, list[float]]) -> dict[str, dict[str, float]]:
+    summary: dict[str, dict[str, float]] = {}
+
+    for metric_name, values in cv_results.items():
+        if not metric_name.startswith("test_"):
+            continue
+
+        metric_key = metric_name.removeprefix("test_")
+        metric_values = np.asarray(values, dtype=float)
+        if np.any(metric_values < 0):
+            metric_values = np.abs(metric_values)
+
+        summary[metric_key] = {
+            "mean": float(np.mean(metric_values)),
+            "std": float(np.std(metric_values)),
+        }
+
+    return summary
 
 
 def build_metrics(y_true: pd.Series, predictions: np.ndarray) -> dict[str, float]:
