@@ -27,7 +27,7 @@ cars-prediction-ml/
 
 ## Run full pipeline (training a model + running the API with the model loaded)
 ```bash
-run-full-pipeline
+make run-full-pipeline
 ```
 
 ## Training Flow
@@ -36,7 +36,7 @@ run-full-pipeline
 cd training
 cp .env.example .env
 make fetch-data
-make all DATA_PATH=data/data.csv
+make all DATA_PATH=data/fetched/data.csv
 ```
 
 `make all` trains the model and copies the resulting artifact to
@@ -63,5 +63,5 @@ Example prediction payload:
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":"195 000 km","gearbox":"manual","engine_capacity":"1 598 cm3","fuel_type":"Benzyna","city":"Warszawa","voivodeship":"Mazowieckie","year":1998}}'
+  -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":195000,"gearbox":"manual","engine_capacity":1598,"fuel_type":"Benzyna","year":1998}}'
 ```
