@@ -1,10 +1,19 @@
 run-full-pipeline:
-	@echo "Running the full pipeline: fetch data, train model, and copy model to API, start the API container"
+	@echo "Running the full pipeline: fetch data, train model, and copy model to API, start the API + DB stack"
 	$(MAKE) -C training all
-	$(MAKE) -C api docker-run
-	echo "Waiting for the API to start..."
+	$(MAKE) -C api docker-compose-up
+	@echo "Waiting for the API to start..."
 	sleep 3
 	$(MAKE) -C api health-check
+
+docker-compose-up:
+	$(MAKE) -C api docker-compose-up
+
+docker-compose-down:
+	$(MAKE) -C api docker-compose-down
+
+docker-compose-logs:
+	$(MAKE) -C api docker-compose-logs
 
 format-all:
 	@echo "Formatting all code"
