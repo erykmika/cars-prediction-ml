@@ -3,7 +3,7 @@ CONTAINER_NAME ?= cars-prediction-api
 PORT ?= 8000
 MODEL_PATH ?= models/poland_used_cars_linear_regression.joblib
 
-.PHONY: help install test lint format docker-build docker-run docker-stop
+.PHONY: help install test lint format docker-build docker-run docker-stop docker-compose-up docker-compose-down docker-compose-logs
 
 help:
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -37,3 +37,12 @@ health-check: ## Check the health of the running API container
 
 docker-stop: ## Stop the running API container
 	-docker stop $(CONTAINER_NAME)
+
+docker-compose-up: ## Start the full stack (API + PostgreSQL) with docker compose
+	docker compose -f ../docker-compose.yml up -d --build
+
+docker-compose-down: ## Stop and remove the full stack
+	docker compose -f ../docker-compose.yml down
+
+docker-compose-logs: ## Tail logs from all services
+	docker compose -f ../docker-compose.yml logs -f

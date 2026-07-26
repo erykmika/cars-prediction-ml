@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.endpoints import health, predict
 from app.core.config import get_settings
-from app.services.mock_db import MockPredictionRepository
+from app.db.session import init_db
 from app.services.model_service import (
     InvalidInputShapeError,
     ModelInferenceError,
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.settings = settings
     app.state.model_service = model_service
-    app.state.mock_db = MockPredictionRepository()
+    init_db()
 
     yield
 

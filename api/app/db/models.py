@@ -1,0 +1,20 @@
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
+
+from app.db.base import Base
+
+
+class Prediction(Base):
+    __tablename__ = "predictions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    request_id = Column(String(36), unique=True, nullable=False, index=True)
+    features = Column(JSON, nullable=False)
+    prediction = Column(Float, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )

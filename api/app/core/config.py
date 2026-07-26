@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     model_path: Path = Field(default=Path("models/poland_used_cars_linear_regression.joblib"))
     model_version: str = "unknown"
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/cars_predictions"
 
     model_config = SettingsConfigDict(
         env_file=".env",
