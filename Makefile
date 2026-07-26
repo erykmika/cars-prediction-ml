@@ -3,7 +3,7 @@ run-full-pipeline:
 	$(MAKE) -C training all
 	$(MAKE) -C api docker-compose-up
 	@echo "Waiting for the API to start..."
-	sleep 3
+	sleep 10
 	$(MAKE) -C api health-check
 
 docker-compose-up:

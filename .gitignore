@@ -11,3 +11,5 @@ build/
 *.egg-info/
 .idea
 *.joblib
+*.db
+*.sql
