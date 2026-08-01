@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from logging import get_logger
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,6 +14,8 @@ from app.services.model_service import (
     ModelNotReadyError,
     ModelService,
 )
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -36,6 +39,14 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+logger.info("Starting Cars Prediction ML API...")
+
+settings = get_settings()
+
+logger.info(f"Model path: {settings.model_path}")
+logger.info(f"Model version: {settings.model_version}")
+logger.info(f"Database URL: {settings.database_url[:5] if settings.database_url else 'Not set'}***")
 
 
 @app.exception_handler(ModelNotReadyError)
