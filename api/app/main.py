@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from logging import get_logger
+from logging import getLogger
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -15,7 +15,7 @@ from app.services.model_service import (
     ModelService,
 )
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 @asynccontextmanager
