@@ -12,16 +12,23 @@ The repository is split into two independent parts:
 
 ```text
 cars-prediction-ml/
+├── Makefile
+├── docker-compose.yml
+├── railway.json
 ├── api/
 │   ├── app/
+│   ├── alembic/
 │   ├── models/
 │   ├── tests/
 │   ├── Dockerfile
-│   └── Makefile
+│   ├── Makefile
+│   └── docker-entrypoint.sh
 └── training/
     ├── data/
+    ├── metrics/
     ├── models/
     ├── src/
+    ├── tests/
     └── Makefile
 ```
 
@@ -35,14 +42,15 @@ make run-full-pipeline
 ```bash
 cd training
 cp .env.example .env
-make fetch-data
-make all DATA_PATH=data/fetched/data.csv
+make all
 ```
 
-`make all` trains the model and copies the resulting artifact to
-`api/models/poland_used_cars_linear_regression.joblib`.
+`make all` downloads the Kaggle dataset into `training/data/fetched/` and trains the model into
+`training/models/poland_used_cars_linear_regression.joblib`. To train against a custom CSV, pass
+`DATA_PATH=/path/to/your/file.csv` to `make`. See `training/README.md` for details.
 
-The training target column is `price_in_pln`. All other dataset columns are used as features.
+The training target column is `price_in_pln`. All remaining dataset columns except `voivodeship`
+and `city` are used as features.
 
 ## API Flow
 
@@ -50,13 +58,18 @@ The training target column is `price_in_pln`. All other dataset columns are used
 cd api
 make test
 make lint
-make docker-run
+make docker-compose-up
 ```
 
-The API loads `models/poland_used_cars_linear_regression.joblib` on startup and exposes:
+`make docker-compose-up` builds the API image and starts it together with PostgreSQL. On startup
+the container entrypoint copies the trained artifact from `training/models/` into the API service
+and runs the Alembic migrations. The API loads `models/poland_used_cars_linear_regression.joblib`
+and exposes:
 
 - `GET /health`
 - `POST /predict`
+
+Each prediction is persisted to the `predictions` table in PostgreSQL.
 
 Example prediction payload:
 

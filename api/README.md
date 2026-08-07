@@ -5,15 +5,17 @@ FastAPI service for serving scikit-learn car prediction models.
 ## Run Locally
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
+uv sync --extra dev
+uv run uvicorn app.main:app --reload
 ```
 
 The service expects a trained model at `models/poland_used_cars_linear_regression.joblib` by
 default. Override it with
 `MODEL_PATH=/path/to/model.pkl`.
+
+The API persists each prediction to a PostgreSQL database. By default it connects to
+`postgresql://postgres:postgres@localhost:5432/cars_predictions` (see `.env.example`). Start the
+database first with `docker compose -f ../docker-compose.yml up -d db` (from the repository root).
 
 ## API
 
@@ -33,12 +35,22 @@ Prediction:
 
 ## Docker
 
+The Dockerfile is written against the repository root as the build context:
+
 ```bash
-docker build -t cars-prediction-api .
-docker run --rm -p 8000:8000 \
-  -e MODEL_PATH=models/poland_used_cars_linear_regression.joblib \
-  cars-prediction-api
+# from the repository root
+docker build -t cars-prediction-api -f api/Dockerfile .
 ```
+
+The API requires a PostgreSQL database, so the simplest way to run the full stack (PostgreSQL +
+the API) is Docker Compose:
+
+```bash
+make docker-compose-up
+```
+
+On startup the container entrypoint copies the trained model from `training/models/` and runs the
+Alembic migrations before starting the service.
 
 ## Configuration
 

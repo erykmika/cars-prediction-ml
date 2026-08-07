@@ -20,29 +20,32 @@ Download the latest dataset version through the Kaggle connector:
 make fetch-data
 ```
 
-The connector prints the local Kaggle cache path returned by `kagglehub`. You can then either pass
-the downloaded CSV path directly to training:
+The CSV is downloaded into `training/data/fetched/data.csv`, which is the default `DATA_PATH` used
+by the `train` target. If you already have your own CSV, copy it into the repo and point the
+pipeline at it:
 
 ```bash
-make train DATA_PATH=/path/from/kagglehub/file.csv
+make all DATA_PATH=/path/to/your/file.csv
 ```
-
-or place/copy the CSV at:
-
-```text
-training/data/poland_used_cars.csv
-```
-
-If your file has a different name, pass `DATA_PATH` to `make`.
 
 ## Train
+
+`make all` downloads the dataset and trains the model:
 
 ```bash
 make all
 ```
 
-This trains the model into `training/models/poland_used_cars_linear_regression.joblib` and then
-copies it to `api/models/poland_used_cars_linear_regression.joblib` for the FastAPI service.
+The artifact is saved to `training/models/poland_used_cars_linear_regression.joblib`, with metrics
+written to `training/metrics/`. To train only (skipping the download), run:
 
-The trainer expects the target column to be `price_in_pln`, keeps all other columns as features,
-builds a numeric/categorical preprocessing pipeline, and saves model metadata with the artifact.
+```bash
+make train DATA_PATH=data/fetched/data.csv
+```
+
+The trainer expects the target column to be `price_in_pln`, keeps all remaining columns except
+`voivodeship` and `city` as features, builds a numeric/categorical preprocessing pipeline, and
+saves model metadata with the artifact.
+
+When the API is started with Docker Compose, the container entrypoint copies this artifact from
+`training/models/` into the running API service.
