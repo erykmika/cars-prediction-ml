@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "cars-prediction-training"
 version = "0.1.0"
 description = "Training pipeline for Poland used cars linear regression model."
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "joblib>=1.5.3",
     "kagglehub>=1.0.1",
@@ -28,7 +28,7 @@ include = ["src*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

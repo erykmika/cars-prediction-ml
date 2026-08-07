@@ -1,8 +1,6 @@
-from typing import TypeAlias
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-FeatureValue: TypeAlias = str | float | int | bool | None
+type FeatureValue = str | float | int | bool | None
 
 
 class PredictionRequest(BaseModel):  # TODO add validation
