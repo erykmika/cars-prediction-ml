@@ -23,10 +23,7 @@ def test_predict_returns_prediction_with_loaded_model() -> None:
         response = client.post("/predict", json={"features": [10, 15]})
 
     assert response.status_code == 200
-    payload = response.json()
-    assert payload["prediction"] == 25
-    assert payload["model_version"] == "unknown"
-    assert payload["request_id"]
+    assert response.json() == {"prediction": 25}
 
 
 def test_predict_accepts_trained_model_feature_mapping() -> None:
@@ -38,7 +35,7 @@ def test_predict_accepts_trained_model_feature_mapping() -> None:
         response = client.post("/predict", json={"features": {"year": 2020, "mileage": 500}})
 
     assert response.status_code == 200
-    assert response.json()["prediction"] == 1520
+    assert response.json() == {"prediction": 1520}
 
 
 def test_predict_rejects_invalid_feature_count() -> None:

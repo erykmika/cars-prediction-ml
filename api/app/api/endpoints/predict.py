@@ -20,10 +20,6 @@ async def predict(
     repo = PredictionRepository(db)
 
     result = model_service.predict(payload.features)
-    record = repo.save_prediction(features=payload.features, prediction=result)
+    repo.save_prediction(features=payload.features, prediction=result)
 
-    return PredictionResponse(
-        prediction=result,
-        model_version=model_service.model_version,
-        request_id=record["request_id"],
-    )
+    return PredictionResponse(prediction=result)

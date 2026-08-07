@@ -1,6 +1,11 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 type FeatureValue = str | float | int | bool | None
+type PredictionValue = float | int | str | list[float | int | str]
+
+
+class PredictionResponse(BaseModel):
+    prediction: PredictionValue
 
 
 class PredictionRequest(BaseModel):  # TODO add validation
@@ -37,9 +42,3 @@ class PredictionRequest(BaseModel):  # TODO add validation
         if len(value) == 0:
             raise ValueError("features must not be empty")
         return value
-
-
-class PredictionResponse(BaseModel):
-    prediction: float | int | str | list[float | int | str]
-    model_version: str
-    request_id: str

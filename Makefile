@@ -24,3 +24,11 @@ lint-all:
 	@echo "Linting all code"
 	$(MAKE) -C training lint
 	$(MAKE) -C api lint
+
+check-all:
+	@echo "Checking (formatting and linting) all code"
+	$(MAKE) -C training format
+	$(MAKE) -C training lint
+	$(MAKE) -C api format
+	$(MAKE) -C api lint
+	$(MAKE) -C api test
