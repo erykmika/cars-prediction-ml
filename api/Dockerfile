@@ -8,15 +8,18 @@ WORKDIR /app
 
 RUN addgroup --system app && adduser --system --ingroup app app
 
-COPY pyproject.toml README.md ./
+COPY api/pyproject.toml api/README.md ./
 RUN pip install --upgrade pip && pip install .
 
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY app ./app
-COPY models ./models
+COPY api/alembic.ini ./
+COPY api/alembic ./alembic
+COPY api/app ./app
+COPY api/models ./models
+RUN chown -R app:app /app/models
 
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY training /training
+
+COPY api/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER app
