@@ -22,14 +22,31 @@ def upgrade() -> None:
     with op.batch_alter_table("predictions") as batch_op:
         batch_op.drop_index(op.f("ix_predictions_request_id"))
         batch_op.drop_column("request_id")
-        batch_op.add_column(sa.Column("client_address", sa.String(255), nullable=False))
+        batch_op.add_column(
+            sa.Column(
+                "client_address",
+                sa.String(255),
+                nullable=False,
+                server_default="default_address",
+            )
+        )
         batch_op.create_index(op.f("ix_predictions_client_address"), ["client_address"])
+    with op.batch_alter_table("predictions") as batch_op:
+        batch_op.alter_column("client_address", server_default=None)
 
 
 def downgrade() -> None:
     with op.batch_alter_table("predictions") as batch_op:
         batch_op.drop_index(op.f("ix_predictions_client_address"))
         batch_op.drop_column("client_address")
-        batch_op.add_column(sa.Column("request_id", sa.String(36), nullable=False))
-        batch_op.create_unique_constraint("uq_predictions_request_id", ["request_id"])
+        batch_op.add_column(
+            sa.Column(
+                "request_id",
+                sa.String(36),
+                nullable=False,
+                server_default="downgraded_request_id",
+            )
+        )
         batch_op.create_index(op.f("ix_predictions_request_id"), ["request_id"])
+    with op.batch_alter_table("predictions") as batch_op:
+        batch_op.alter_column("request_id", server_default=None)
