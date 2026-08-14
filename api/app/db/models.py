@@ -9,7 +9,7 @@ class Prediction(Base):
     __tablename__ = "predictions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    request_id = Column(String(36), unique=True, nullable=False, index=True)
+    client_address = Column(String(255), nullable=False, index=True)
     features = Column(JSON, nullable=False)
     prediction = Column(Float, nullable=False)
     created_at = Column(

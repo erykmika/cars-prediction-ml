@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
+from app.db.models import Prediction
 from app.main import app
+from tests.conftest import TestingSessionLocal
 
 
 class DummyModel:
@@ -55,3 +57,18 @@ def test_predict_returns_503_when_model_is_missing() -> None:
 
     assert response.status_code == 503
     assert "Model file not found" in response.json()["detail"]
+
+
+def test_predict_persists_client_address() -> None:
+    with TestClient(app) as client:
+        app.state.model_service.model = DummyModel()
+        app.state.model_service.load_error = None
+
+        response = client.post("/predict", json={"features": [10, 15]})
+
+    assert response.status_code == 200
+    with TestingSessionLocal() as db:
+        records = db.query(Prediction).all()
+        assert len(records) == 1
+        assert records[0].client_address == "testclient"
+        assert not hasattr(records[0], "request_id")

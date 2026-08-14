@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -14,11 +13,12 @@ class PredictionRepository:
     def save_prediction(
         self,
         *,
+        address: str,
         features: dict[str, Any] | list[float],
         prediction: Any,
     ) -> dict[str, Any]:
         record = Prediction(
-            request_id=str(uuid4()),
+            client_address=address,
             features=features,
             prediction=float(prediction),
             created_at=datetime.now(UTC),
@@ -27,7 +27,7 @@ class PredictionRepository:
         self.db.commit()
         self.db.refresh(record)
         return {
-            "request_id": record.request_id,
+            "client_address": record.client_address,
             "features": record.features,
             "prediction": record.prediction,
             "created_at": record.created_at.isoformat(),
@@ -37,7 +37,7 @@ class PredictionRepository:
         records = self.db.query(Prediction).order_by(Prediction.created_at.desc()).all()
         return [
             {
-                "request_id": r.request_id,
+                "client_address": r.client_address,
                 "features": r.features,
                 "prediction": r.prediction,
                 "created_at": r.created_at.isoformat(),

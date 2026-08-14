@@ -20,6 +20,7 @@ async def predict(
     repo = PredictionRepository(db)
 
     result = model_service.predict(payload.features)
-    repo.save_prediction(features=payload.features, prediction=result)
+    address = request.client.host if request.client else "unknown"
+    repo.save_prediction(address=address, features=payload.features, prediction=result)
 
     return PredictionResponse(prediction=result)
