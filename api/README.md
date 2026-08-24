@@ -19,17 +19,36 @@ database first with `docker compose -f ../docker-compose.yml up -d db` (from the
 
 ## API
 
-Health:
+Health (public):
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Prediction:
+Authentication:
 
 ```bash
-  curl -X POST http://localhost:8000/predict \
+# Login to get tokens
+curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
+  -d '{"username":"CARS_PREDICTION_USER","password":"123"}'
+
+# Refresh access token
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"<refresh_token>"}'
+
+# Get current user
+curl -X GET http://localhost:8000/auth/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Prediction (requires authentication):
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
   -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":195000,"gearbox":"manual","engine_capacity":1598,"fuel_type":"Benzyna","year":1998}}'
 ```
 

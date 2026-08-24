@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String
 
 from app.db.base import Base
 
@@ -17,4 +17,18 @@ class Prediction(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
         index=True,
+    )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(255), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )

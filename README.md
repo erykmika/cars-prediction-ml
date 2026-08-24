@@ -66,15 +66,30 @@ the container entrypoint copies the trained artifact from `training/models/` int
 and runs the Alembic migrations. The API loads `models/poland_used_cars_linear_regression.joblib`
 and exposes:
 
-- `GET /health`
-- `POST /predict`
+- `GET /health` (public)
+- `POST /auth/login` - Obtain access/refresh tokens
+- `POST /auth/refresh` - Refresh access token
+- `GET /auth/me` - Get current user info
+- `POST /predict` (requires authentication)
 
 Each prediction is persisted to the `predictions` table in PostgreSQL.
 
-Example prediction payload:
+Example authentication and prediction flow:
 
 ```bash
+# 1. Login to get tokens
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"CARS_PREDICTION_USER","password":"123"}'
+
+# 2. Use access token for prediction
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
   -d '{"features":{"brand":"alfa-romeo","model":"Alfa Romeo 156 2.5 V6 Distinctive","mileage":195000,"gearbox":"manual","engine_capacity":1598,"fuel_type":"Benzyna","year":1998}}'
+
+# 3. Refresh access token when expired
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"<refresh_token>"}'
 ```
