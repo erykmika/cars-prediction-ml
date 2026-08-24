@@ -17,54 +17,66 @@ class DummyFrameModel:
         return [rows.iloc[0]["year"] - rows.iloc[0]["mileage"]]
 
 
-def test_predict_returns_prediction_with_loaded_model() -> None:
+def test_predict_returns_prediction_with_loaded_model(auth_headers) -> None:
     with TestClient(app) as client:
         app.state.model_service.model = DummyModel()
         app.state.model_service.load_error = None
 
-        response = client.post("/predict", json={"features": [10, 15]})
+        response = client.post("/predict", json={"features": [10, 15]}, headers=auth_headers)
 
     assert response.status_code == 200
     assert response.json() == {"prediction": 25}
 
 
-def test_predict_accepts_trained_model_feature_mapping() -> None:
+def test_predict_accepts_trained_model_feature_mapping(auth_headers) -> None:
     with TestClient(app) as client:
         app.state.model_service.model = DummyFrameModel()
         app.state.model_service.feature_columns = ["year", "mileage"]
         app.state.model_service.load_error = None
 
-        response = client.post("/predict", json={"features": {"year": 2020, "mileage": 500}})
+        response = client.post(
+            "/predict", json={"features": {"year": 2020, "mileage": 500}}, headers=auth_headers
+        )
 
     assert response.status_code == 200
     assert response.json() == {"prediction": 1520}
 
 
-def test_predict_rejects_invalid_feature_count() -> None:
+def test_predict_rejects_invalid_feature_count(auth_headers) -> None:
     with TestClient(app) as client:
         app.state.model_service.model = DummyModel()
         app.state.model_service.load_error = None
 
-        response = client.post("/predict", json={"features": [10]})
+        response = client.post("/predict", json={"features": [10]}, headers=auth_headers)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Expected 2 features, received 1."
 
 
-def test_predict_returns_503_when_model_is_missing() -> None:
-    with TestClient(app) as client:
-        response = client.post("/predict", json={"features": [10, 15]})
-
-    assert response.status_code == 503
-    assert "Model file not found" in response.json()["detail"]
-
-
-def test_predict_persists_client_address() -> None:
+def test_predict_returns_401_without_auth() -> None:
     with TestClient(app) as client:
         app.state.model_service.model = DummyModel()
         app.state.model_service.load_error = None
 
         response = client.post("/predict", json={"features": [10, 15]})
+
+    assert response.status_code == 401
+
+
+def test_predict_returns_503_when_model_is_missing(auth_headers) -> None:
+    with TestClient(app) as client:
+        response = client.post("/predict", json={"features": [10, 15]}, headers=auth_headers)
+
+    assert response.status_code == 503
+    assert "Model file not found" in response.json()["detail"]
+
+
+def test_predict_persists_client_address(auth_headers) -> None:
+    with TestClient(app) as client:
+        app.state.model_service.model = DummyModel()
+        app.state.model_service.load_error = None
+
+        response = client.post("/predict", json={"features": [10, 15]}, headers=auth_headers)
 
     assert response.status_code == 200
     with TestingSessionLocal() as db:
