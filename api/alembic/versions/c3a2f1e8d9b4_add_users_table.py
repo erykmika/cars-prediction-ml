@@ -8,8 +8,8 @@ Create Date: 2026-08-23 00:00:00.000000
 
 from collections.abc import Sequence
 
-import bcrypt
 import sqlalchemy as sa
+from passlib.context import CryptContext
 
 from alembic import op
 
@@ -17,6 +17,8 @@ revision: str = "c3a2f1e8d9b4"
 down_revision: str | None = "b7f4e1d9c2a8"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def upgrade() -> None:
@@ -37,7 +39,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_users_username"), "users", ["username"], unique=True)
 
     # Insert example user: CARS_PREDICTION_USER / 123
-    hashed_password = bcrypt.hashpw(b"123", bcrypt.gensalt()).decode("utf-8")
+    hashed_password = pwd_context.hash("123")
     op.execute(
         sa.text(
             "INSERT INTO users (username, hashed_password, is_active) "

@@ -39,8 +39,11 @@ def setup_database():
     Base.metadata.drop_all(bind=test_engine)
 
 
-# Pre-computed bcrypt hash for "testpass" (8 chars) using bcrypt directly
-TEST_PASSWORD_HASH = "$2b$12$GLxZ96xBe1Hgavw39Q2zN.VUy4UCc4GDHRYlhq9FOsonSb2.3JwoW"
+# Pre-computed argon2 hash for "testpass" (8 chars)
+TEST_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=4$Z4wxZoyRcm5NyfnfmxNCCA"
+    "$xdlDEV03ewmw3s4XPvdan/YyP3ncNBP1UoMo9FYz0EY"
+)
 
 
 @pytest.fixture

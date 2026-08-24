@@ -19,7 +19,8 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "alembic>=1.18.5",
     "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
+    "passlib[argon2]>=1.7.4",
+    "argon2-cffi>=23.1.0",
 ]
 
 [project.optional-dependencies]
