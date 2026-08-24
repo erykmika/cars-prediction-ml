@@ -6,7 +6,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from app.schemas.prediction import FeatureValue
+from app.api.schemas.prediction import FeatureValue
 
 
 class ModelNotReadyError(RuntimeError):
