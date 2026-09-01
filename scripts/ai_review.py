@@ -1,5 +1,5 @@
 import json
-from logging import getLogger
+import logging
 import os
 import subprocess
 import sys
@@ -21,18 +21,20 @@ BASE_DELAY = 1.0
 MAX_DELAY = 60.0
 
 
-logger = getLogger(__name__)
-logger.setLevel("INFO")
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 
 
 logger.info(f"Using model: {MODEL}")
 logger.info(f"Using OpenRouter URL: {OPENROUTER_URL}")
 
-def run(command: str) -> str:
-    logger.info(f"Running command: {command}")
+def run(command: list[str]) -> str:
+    logger.info(f"Running command: {' '.join(command)}")
     result = subprocess.run(
         command,
-        shell=True,
         text=True,
         capture_output=True,
         check=True,
@@ -43,9 +45,12 @@ def run(command: str) -> str:
 
 def get_diff() -> str:
     return run(
-        "git diff "
-        f"{os.environ['PR_HEAD_SHA']}^ "
-        f"{os.environ['PR_HEAD_SHA']} "
+        [
+            "git",
+            "diff",
+            f"{os.environ['PR_HEAD_SHA']}^",
+            os.environ['PR_HEAD_SHA'],
+        ]
     )
 
 
