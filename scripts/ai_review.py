@@ -284,7 +284,15 @@ def post_review(review: dict[str, Any]) -> None:
 
     if not comments:
         logger.info("No sufficiently confident findings.")
-        return
+        summary = review.get(
+            "summary",
+            "No problems found.",
+        )
+    else:
+        summary = review.get(
+            "summary",
+            "AI code review completed.",
+        )
 
     repository = os.environ["GITHUB_REPOSITORY"]
     owner, repo = repository.split("/")
@@ -298,10 +306,7 @@ def post_review(review: dict[str, Any]) -> None:
 
     payload = {
         "commit_id": os.environ["PR_HEAD_SHA"],
-        "body": review.get(
-            "summary",
-            "AI code review completed.",
-        ),
+        "body": summary,
         "event": "COMMENT",
         "comments": comments,
     }
