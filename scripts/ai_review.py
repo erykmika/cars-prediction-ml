@@ -1,7 +1,10 @@
 import json
+from logging import getLogger
 import os
 import subprocess
 import sys
+import time
+from typing import Any
 
 import requests
 
@@ -13,8 +16,20 @@ MODEL = os.getenv(
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+MAX_RETRIES = 5
+BASE_DELAY = 1.0
+MAX_DELAY = 60.0
 
-def run(command):
+
+logger = getLogger(__name__)
+logger.setLevel("INFO")
+
+
+logger.info(f"Using model: {MODEL}")
+logger.info(f"Using OpenRouter URL: {OPENROUTER_URL}")
+
+def run(command: str) -> str:
+    logger.info(f"Running command: {command}")
     result = subprocess.run(
         command,
         shell=True,
@@ -22,10 +37,11 @@ def run(command):
         capture_output=True,
         check=True,
     )
+    logger.info(f"Command output: {result.stdout}")
     return result.stdout
 
 
-def get_diff():
+def get_diff() -> str:
     return run(
         "git diff "
         f"{os.environ['PR_HEAD_SHA']}^ "
@@ -33,46 +49,64 @@ def get_diff():
     )
 
 
-def load_rules():
+def load_rules() -> str:
     with open(".ai_review/rules.md", "r", encoding="utf-8") as f:
+        logger.info("Loading review rules...")
         return f.read()
 
 
-def call_model(prompt):
-    response = requests.post(
-        OPENROUTER_URL,
-        headers={
-            "Authorization": (
-                f"Bearer {os.environ['OPENROUTER_API_KEY']}"
-            ),
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": MODEL,
-            "temperature": 0.1,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-        },
-        timeout=300,
-    )
+def call_model(prompt: str) -> str:
+    delay = BASE_DELAY
 
-    response.raise_for_status()
+    for attempt in range(MAX_RETRIES):
+        logger.info(f"Calling model (attempt {attempt + 1}/{MAX_RETRIES})...")
+        response = requests.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": (
+                    f"Bearer {os.environ['OPENROUTER_API_KEY']}"
+                ),
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "temperature": 0.1,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT,
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+            },
+            timeout=300,
+        )
 
-    data = response.json()
+        if response.status_code == 429 or 500 <= response.status_code < 600:
+            if attempt < MAX_RETRIES - 1:
+                logger.warning(
+                    f"API returned {response.status_code}, retrying in "
+                    f"{delay:.1f}s (attempt {attempt + 1}/{MAX_RETRIES})"
+                )
+                time.sleep(delay)
+                delay = min(delay * 2, MAX_DELAY)
+                continue
+            response.raise_for_status()
 
-    if "choices" not in data:
-        print(f"Unexpected API response: {json.dumps(data, indent=2)}")
-        raise ValueError("API response missing 'choices' field")
+        response.raise_for_status()
 
-    return data["choices"][0]["message"]["content"]
+        data = response.json()
+
+        if "choices" not in data:
+            logger.error(f"Unexpected API response: {json.dumps(data, indent=2)}")
+            raise ValueError("API response missing 'choices' field")
+
+        return data["choices"][0]["message"]["content"]
+
+    raise RuntimeError("Max retries exceeded")
 
 
 SYSTEM_PROMPT = """
@@ -108,7 +142,7 @@ Schema:
 """
 
 
-def parse_response(text):
+def parse_response(text: str) -> dict[str, Any]:
     text = text.strip()
 
     # Handle accidental markdown fences.
@@ -126,7 +160,7 @@ def parse_response(text):
     return json.loads(text)
 
 
-def main():
+def main() -> None:
     diff = get_diff()
     rules = load_rules()
 
@@ -150,29 +184,32 @@ Remember:
   a genuine issue.
 """
 
-    print("Running AI review...")
+    logger.info("Running AI review...")
     raw = call_model(prompt)
 
     try:
         review = parse_response(raw)
     except json.JSONDecodeError:
-        print("Model returned invalid JSON:")
-        print(raw)
+        logger.error("Model returned invalid JSON:")
+        logger.error(raw)
         sys.exit(1)
 
     validate_review(review)
 
-    print(json.dumps(review, indent=2))
+    logger.info(f"AI review completed: {json.dumps(review, indent=2)}")
 
     post_review(review)
 
 
-def validate_review(review):
+def validate_review(review: dict[str, Any]) -> None:
     if not isinstance(review, dict):
         raise ValueError("Review must be an object")
 
     if "findings" not in review:
         raise ValueError("Missing findings")
+
+    if not isinstance(review["findings"], list):
+        raise ValueError("Findings must be a list")
 
     allowed_severity = {
         "critical",
@@ -181,21 +218,44 @@ def validate_review(review):
         "low",
     }
 
-    for finding in review["findings"]:
+    required_fields = {"path", "line", "title", "body", "severity", "confidence"}
+
+    for i, finding in enumerate(review["findings"]):
+        if not isinstance(finding, dict):
+            raise ValueError(f"Finding {i} must be an object")
+
+        missing = required_fields - finding.keys()
+        if missing:
+            raise ValueError(f"Finding {i} missing required fields: {missing}")
+
         if finding["severity"] not in allowed_severity:
-            raise ValueError("Invalid severity")
+            raise ValueError(f"Finding {i}: invalid severity")
+
+        if not isinstance(finding["path"], str) or not finding["path"]:
+            raise ValueError(f"Finding {i}: path must be a non-empty string")
+
+        if not isinstance(finding["line"], int) or finding["line"] < 1:
+            raise ValueError(f"Finding {i}: line must be a positive integer")
+
+        if not isinstance(finding["title"], str) or not finding["title"]:
+            raise ValueError(f"Finding {i}: title must be a non-empty string")
+
+        if not isinstance(finding["body"], str) or not finding["body"]:
+            raise ValueError(f"Finding {i}: body must be a non-empty string")
 
         confidence = finding.get("confidence")
 
         if not isinstance(confidence, (float, int)):
-            raise ValueError("Invalid confidence")
+            raise ValueError(f"Finding {i}: invalid confidence")
 
         if not 0 <= confidence <= 1:
-            raise ValueError("Confidence outside [0, 1]")
+            raise ValueError(f"Finding {i}: confidence outside [0, 1]")
 
 
-def post_review(review):
-    comments = []
+def post_review(review: dict[str, Any]) -> None:
+    comments: list[dict[str, Any]] = []
+
+    logger.info(f"All findings: {json.dumps(review['findings'], indent=2)}")
 
     for finding in review["findings"]:
         # Don't post low-confidence findings.
@@ -218,7 +278,7 @@ def post_review(review):
         )
 
     if not comments:
-        print("No sufficiently confident findings.")
+        logger.info("No sufficiently confident findings.")
         return
 
     repository = os.environ["GITHUB_REPOSITORY"]
@@ -255,7 +315,7 @@ def post_review(review):
 
     response.raise_for_status()
 
-    print("Review posted.")
+    logger.info("Review posted.")
 
 
 if __name__ == "__main__":

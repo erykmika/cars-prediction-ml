@@ -32,6 +32,11 @@ cars-prediction-ml/
     └── Makefile
 ```
 
+## Development
+
+Meaningful changes are introduced by submitting pull requests.  
+These are reviewed using an AI pipeline which is scripted using `scripts/ai_review.py`.
+
 ## Run full pipeline (training a model + running the API with the model loaded)
 ```bash
 make run-full-pipeline
