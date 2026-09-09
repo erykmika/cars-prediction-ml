@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas.auth import LoginRequest, RefreshRequest, Token, UserResponse
 from app.db.models import User
 from app.db.session import get_db
-from app.services.auth_service import create_token_pair, decode_token, verify_password
+from app.services.auth_service import AuthService, get_auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -17,28 +17,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[Session, Depends(get_db)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    token_data = decode_token(token)
-    if not token_data or token_data.get("type") != "access":
-        raise credentials_exception
-
-    username: str = token_data.get("sub")
-    if username is None:
-        raise credentials_exception
-
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise credentials_exception
-
-    if not user.is_active:
+    user = auth_service.get_current_user(db, token)
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return user
 
@@ -47,21 +33,17 @@ async def get_current_user(
 async def login(
     payload: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Token:
-    user = db.query(User).filter(User.username == payload.username).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
+    user = auth_service.authenticate_user(db, payload.username, payload.password)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user",
-        )
 
-    access_token, refresh_token = create_token_pair(user.username)
+    access_token, refresh_token = auth_service.create_login_tokens(user.username)
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -69,33 +51,16 @@ async def login(
 async def refresh_token(
     payload: RefreshRequest,
     db: Annotated[Session, Depends(get_db)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Token:
-    token_data = decode_token(payload.refresh_token)
-    if not token_data or token_data.get("type") != "refresh":
+    tokens = auth_service.refresh_tokens(db, payload.refresh_token)
+    if not tokens:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    username = token_data.get("sub")
-    if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    access_token, refresh_token = create_token_pair(user.username)
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(access_token=tokens[0], refresh_token=tokens[1])
 
 
 @router.get("/me", response_model=UserResponse)
