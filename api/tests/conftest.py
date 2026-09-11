@@ -15,7 +15,7 @@ from app.db.base import Base
 from app.db.models import User
 from app.db.session import get_db
 from app.main import app
-from app.services.auth_service import create_access_token
+from app.services.auth_service import AuthService
 
 test_engine = create_engine("sqlite:///./test.db", connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
@@ -65,5 +65,6 @@ def test_user():
 
 @pytest.fixture
 def auth_headers(test_user):
-    access_token = create_access_token({"sub": test_user.username})
+    auth_service = AuthService()
+    access_token = auth_service.create_login_tokens(test_user.username)[0]
     return {"Authorization": f"Bearer {access_token}"}
