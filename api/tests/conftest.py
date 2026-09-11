@@ -66,5 +66,5 @@ def test_user():
 @pytest.fixture
 def auth_headers(test_user):
     auth_service = AuthService()
-    access_token = auth_service._create_access_token({"sub": test_user.username})
+    access_token = auth_service.create_login_tokens(test_user.username)[0]
     return {"Authorization": f"Bearer {access_token}"}
