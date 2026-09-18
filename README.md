@@ -66,10 +66,10 @@ make lint
 make docker-compose-up
 ```
 
-`make docker-compose-up` builds the API image and starts it together with PostgreSQL. On startup
-the container entrypoint copies the trained artifact from `training/models/` into the API service
-and runs the Alembic migrations. The API loads `models/poland_used_cars_linear_regression.joblib`
-and exposes:
+`make docker-compose-up` builds the API image and starts it together with PostgreSQL and MinIO. The
+training command uploads the artifact to MinIO, and the API downloads it during application
+startup before running its Alembic migrations. The API loads
+`models/poland_used_cars_linear_regression.joblib` and exposes:
 
 - `GET /health` (public)
 - `POST /auth/login` - Obtain access/refresh tokens

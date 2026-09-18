@@ -1,3 +1,4 @@
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -5,8 +6,11 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
+from minio import Minio
 
 from app.api.schemas.prediction import FeatureValue
+
+MODEL_OBJECT_NAME = "poland_used_cars_linear_regression.joblib"
 
 
 class ModelNotReadyError(RuntimeError):
@@ -47,8 +51,11 @@ class ModelService:
             return
 
         if not resolved_path.exists():
-            self.load_error = f"Model file not found at '{resolved_path}'."
-            return
+            try:
+                self._download_model(resolved_path)
+            except Exception as exc:
+                self.load_error = f"Model file not found at '{resolved_path}': {exc}"
+                return
 
         try:
             loaded_artifact = joblib.load(resolved_path)
@@ -57,6 +64,17 @@ class ModelService:
         except Exception as exc:
             self.model = None
             self.load_error = f"Failed to load model: {exc}"
+
+    def _download_model(self, destination: Path) -> None:
+        endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+        access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+        secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+        bucket = os.getenv("MINIO_BUCKET", "models")
+        secure = os.getenv("MINIO_SECURE", "false").lower() == "true"
+
+        client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        client.fget_object(bucket, MODEL_OBJECT_NAME, str(destination))
 
     def predict(
         self,

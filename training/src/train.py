@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import math
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
+from minio import Minio
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
@@ -18,6 +20,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET_COLUMN = "price_in_pln"
+MODEL_OBJECT_NAME = "poland_used_cars_linear_regression.joblib"
 NUMERIC_FEATURE_COLUMNS = frozenset({"mileage", "engine_capacity", "year"})
 NUMERIC_COLUMN_UNITS = {
     "mileage": r"km",
@@ -111,9 +114,25 @@ def main() -> None:
     args.model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(artifact, args.model_path)
     write_metrics(args.model_path, metrics)
+    upload_model(args.model_path)
 
     LOGGER.info(f"Saved model artifact to {args.model_path}")
     LOGGER.info(f"{json.dumps(metrics, indent=2, sort_keys=True)}")
+
+
+def upload_model(model_path: Path) -> None:
+    endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    bucket = os.getenv("MINIO_BUCKET", "models")
+    secure = os.getenv("MINIO_SECURE", "false").lower() == "true"
+
+    client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+    if not client.bucket_exists(bucket):
+        client.make_bucket(bucket)
+
+    client.fput_object(bucket, MODEL_OBJECT_NAME, str(model_path))
+    LOGGER.info("Uploaded model artifact to %s/%s", bucket, MODEL_OBJECT_NAME)
 
 
 def load_dataset(data_path: Path, *, max_rows: int | None) -> pd.DataFrame:

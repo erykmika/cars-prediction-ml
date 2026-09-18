@@ -68,8 +68,9 @@ the API) is Docker Compose:
 make docker-compose-up
 ```
 
-On startup the container entrypoint copies the trained model from `training/models/` and runs the
-Alembic migrations before starting the service.
+On startup the API downloads the trained model from the MinIO `models` bucket, loads it, and runs
+the Alembic migrations before starting the service. The model must be uploaded before starting the
+API, for example with `cd training && make all` while MinIO is running.
 
 ## Configuration
 
