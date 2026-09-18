@@ -50,6 +50,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=models
+      - MINIO_SECURE=false
     ports:
       - "8000:8000"
     restart: unless-stopped

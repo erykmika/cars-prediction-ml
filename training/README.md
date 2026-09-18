@@ -47,5 +47,6 @@ The trainer expects the target column to be `price_in_pln`, keeps all remaining 
 `voivodeship` and `city` as features, builds a numeric/categorical preprocessing pipeline, and
 saves model metadata with the artifact.
 
-When the API is started with Docker Compose, the container entrypoint copies this artifact from
-`training/models/` into the running API service.
+When the API is started with Docker Compose, the trainer uploads this artifact to the MinIO
+`models` bucket and the API downloads it during startup. The local Compose pipeline sets
+`MINIO_SECURE=false`; production deployments should use an HTTPS MinIO endpoint.
