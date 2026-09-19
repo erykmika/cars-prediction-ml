@@ -63,8 +63,18 @@ class ModelService:
                 self.load_error = f"Model file not found at '{resolved_path}': {exc}"
                 return
 
-        loaded_artifact = joblib.load(resolved_path)
-        self._apply_loaded_artifact(loaded_artifact)
+        try:
+            loaded_artifact = joblib.load(resolved_path)
+        except Exception as exc:
+            self.load_error = f"Failed to load model from '{resolved_path}': {exc}"
+            return
+
+        try:
+            self._apply_loaded_artifact(loaded_artifact)
+        except Exception as exc:
+            self.load_error = f"Invalid model artifact at '{resolved_path}': {exc}"
+            return
+
         self.load_error = None
 
     def _download_model(self, destination: Path) -> None:
