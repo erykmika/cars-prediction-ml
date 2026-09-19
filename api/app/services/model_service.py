@@ -1,5 +1,3 @@
-import os
-import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -7,14 +5,11 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
-from minio import Minio
 
 from app.api.schemas.prediction import FeatureValue
+from app.external.minio import MinioClient
 
 MODEL_OBJECT_NAME = "poland_used_cars_linear_regression.joblib"
-DEFAULT_MINIO_RETRIES = 10
-DEFAULT_MINIO_INITIAL_DELAY_SECONDS = 1.0
-DEFAULT_MINIO_MAX_DELAY_SECONDS = 30.0
 
 
 class ModelNotReadyError(RuntimeError):
@@ -30,9 +25,16 @@ class ModelInferenceError(RuntimeError):
 
 
 class ModelService:
-    def __init__(self, *, model_path: Path, model_version: str = "unknown") -> None:
+    def __init__(
+        self,
+        *,
+        model_path: Path,
+        minio_client: MinioClient,
+        model_version: str = "unknown",
+    ) -> None:
         self.model_path = model_path
         self.model_version = model_version
+        self.minio_client = minio_client
         self.model: Any | None = None
         self.feature_columns: list[str] | None = None
         self.target_column: str | None = None
@@ -57,46 +59,16 @@ class ModelService:
         if not resolved_path.exists():
             try:
                 self._download_model(resolved_path)
-            except Exception as exc:
+            except RuntimeError as exc:
                 self.load_error = f"Model file not found at '{resolved_path}': {exc}"
                 return
 
-        try:
-            loaded_artifact = joblib.load(resolved_path)
-            self._apply_loaded_artifact(loaded_artifact)
-            self.load_error = None
-        except Exception as exc:
-            self.model = None
-            self.load_error = f"Failed to load model: {exc}"
+        loaded_artifact = joblib.load(resolved_path)
+        self._apply_loaded_artifact(loaded_artifact)
+        self.load_error = None
 
     def _download_model(self, destination: Path) -> None:
-        endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
-        access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-        secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-        bucket = os.getenv("MINIO_BUCKET", "models")
-        secure = os.getenv("MINIO_SECURE", "true").lower() == "true"
-        retries = max(1, int(os.getenv("MINIO_RETRIES", str(DEFAULT_MINIO_RETRIES))))
-        initial_delay = float(
-            os.getenv("MINIO_INITIAL_DELAY_SECONDS", str(DEFAULT_MINIO_INITIAL_DELAY_SECONDS))
-        )
-        max_delay = float(
-            os.getenv("MINIO_MAX_DELAY_SECONDS", str(DEFAULT_MINIO_MAX_DELAY_SECONDS))
-        )
-
-        client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        delay = initial_delay
-        for attempt in range(1, retries + 1):
-            try:
-                if not client.bucket_exists(bucket):
-                    raise RuntimeError(f"MinIO bucket '{bucket}' does not exist")
-                client.fget_object(bucket, MODEL_OBJECT_NAME, str(destination))
-                return
-            except Exception:
-                if attempt == retries:
-                    raise
-                time.sleep(delay)
-                delay = min(delay * 2, max_delay)
+        self.minio_client.download_object(MODEL_OBJECT_NAME, destination)
 
     def predict(
         self,

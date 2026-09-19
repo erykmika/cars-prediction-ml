@@ -6,8 +6,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.endpoints import auth, health, predict
-from app.core.config import get_settings
+from app.config import get_settings
 from app.db.session import init_db
+from app.external.minio import MinioClient
 from app.services.model_service import (
     InvalidInputShapeError,
     ModelInferenceError,
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     model_service = ModelService(
         model_path=settings.model_path,
+        minio_client=MinioClient(),
         model_version=settings.model_version,
     )
     model_service.load_model()

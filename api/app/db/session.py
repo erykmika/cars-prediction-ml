@@ -12,7 +12,7 @@ _SessionLocal = None
 def _get_engine():
     global _engine
     if _engine is None:
-        from app.core.config import get_settings
+        from app.config import get_settings
 
         settings = get_settings()
         _engine = create_engine(settings.database_url)

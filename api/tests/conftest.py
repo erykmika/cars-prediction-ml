@@ -36,7 +36,7 @@ app.dependency_overrides[get_db] = override_get_db
 @pytest.fixture(autouse=True)
 def setup_database(monkeypatch):
     def skip_model_download(self, destination):
-        raise FileNotFoundError("MinIO is disabled in tests")
+        raise RuntimeError("MinIO is disabled in tests")
 
     monkeypatch.setattr(ModelService, "_download_model", skip_model_download)
     Base.metadata.create_all(bind=test_engine)
