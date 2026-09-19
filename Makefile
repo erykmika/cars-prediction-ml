@@ -1,6 +1,7 @@
 run-full-pipeline:
-	@echo "Running the full pipeline: fetch data, train model, and copy model to API, start the API + DB stack"
-	$(MAKE) -C training all
+	@echo "Running the full pipeline: fetch data, train model, upload model, and start the API stack"
+	docker compose -f docker-compose.yml up -d minio
+	MINIO_SECURE=false $(MAKE) -C training all
 	$(MAKE) -C api docker-compose-up
 	@echo "Waiting for the API to start..."
 	sleep 10

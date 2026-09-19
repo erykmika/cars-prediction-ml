@@ -7,6 +7,9 @@ import numpy as np
 import pandas as pd
 
 from app.api.schemas.prediction import FeatureValue
+from app.external.minio import MinioClient
+
+MODEL_OBJECT_NAME = "poland_used_cars_linear_regression.joblib"
 
 
 class ModelNotReadyError(RuntimeError):
@@ -22,9 +25,16 @@ class ModelInferenceError(RuntimeError):
 
 
 class ModelService:
-    def __init__(self, *, model_path: Path, model_version: str = "unknown") -> None:
+    def __init__(
+        self,
+        *,
+        model_path: Path,
+        minio_client: MinioClient,
+        model_version: str = "unknown",
+    ) -> None:
         self.model_path = model_path
         self.model_version = model_version
+        self.minio_client = minio_client
         self.model: Any | None = None
         self.feature_columns: list[str] | None = None
         self.target_column: str | None = None
@@ -47,16 +57,28 @@ class ModelService:
             return
 
         if not resolved_path.exists():
-            self.load_error = f"Model file not found at '{resolved_path}'."
-            return
+            try:
+                self._download_model(resolved_path)
+            except RuntimeError as exc:
+                self.load_error = f"Model file not found at '{resolved_path}': {exc}"
+                return
 
         try:
             loaded_artifact = joblib.load(resolved_path)
-            self._apply_loaded_artifact(loaded_artifact)
-            self.load_error = None
         except Exception as exc:
-            self.model = None
-            self.load_error = f"Failed to load model: {exc}"
+            self.load_error = f"Failed to load model from '{resolved_path}': {exc}"
+            return
+
+        try:
+            self._apply_loaded_artifact(loaded_artifact)
+        except Exception as exc:
+            self.load_error = f"Invalid model artifact at '{resolved_path}': {exc}"
+            return
+
+        self.load_error = None
+
+    def _download_model(self, destination: Path) -> None:
+        self.minio_client.download_object(MODEL_OBJECT_NAME, destination)
 
     def predict(
         self,

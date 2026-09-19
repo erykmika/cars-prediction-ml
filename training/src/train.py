@@ -2,6 +2,8 @@ import argparse
 import json
 import logging
 import math
+import os
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -9,6 +11,7 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
+from minio import Minio
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
@@ -18,6 +21,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET_COLUMN = "price_in_pln"
+MODEL_OBJECT_NAME = "poland_used_cars_linear_regression.joblib"
+DEFAULT_MINIO_RETRIES = 10
+DEFAULT_MINIO_INITIAL_DELAY_SECONDS = 1.0
+DEFAULT_MINIO_MAX_DELAY_SECONDS = 30.0
 NUMERIC_FEATURE_COLUMNS = frozenset({"mileage", "engine_capacity", "year"})
 NUMERIC_COLUMN_UNITS = {
     "mileage": r"km",
@@ -111,9 +118,39 @@ def main() -> None:
     args.model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(artifact, args.model_path)
     write_metrics(args.model_path, metrics)
+    upload_model(args.model_path)
 
     LOGGER.info(f"Saved model artifact to {args.model_path}")
     LOGGER.info(f"{json.dumps(metrics, indent=2, sort_keys=True)}")
+
+
+def upload_model(model_path: Path) -> None:
+    endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    bucket = os.getenv("MINIO_BUCKET", "models")
+    secure = os.getenv("MINIO_SECURE", "true").lower() == "true"
+    retries = max(1, int(os.getenv("MINIO_RETRIES", str(DEFAULT_MINIO_RETRIES))))
+    initial_delay = float(
+        os.getenv("MINIO_INITIAL_DELAY_SECONDS", str(DEFAULT_MINIO_INITIAL_DELAY_SECONDS))
+    )
+    max_delay = float(os.getenv("MINIO_MAX_DELAY_SECONDS", str(DEFAULT_MINIO_MAX_DELAY_SECONDS)))
+
+    client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+    delay = initial_delay
+    for attempt in range(1, retries + 1):
+        try:
+            if not client.bucket_exists(bucket):
+                client.make_bucket(bucket)
+            client.fput_object(bucket, MODEL_OBJECT_NAME, str(model_path))
+            LOGGER.info("Uploaded model artifact to %s/%s", bucket, MODEL_OBJECT_NAME)
+            return
+        except Exception:
+            if attempt == retries:
+                raise
+            LOGGER.warning("MinIO upload failed; retrying in %.1f seconds", delay)
+            time.sleep(delay)
+            delay = min(delay * 2, max_delay)
 
 
 def load_dataset(data_path: Path, *, max_rows: int | None) -> pd.DataFrame:

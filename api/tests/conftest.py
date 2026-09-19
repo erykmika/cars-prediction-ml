@@ -16,6 +16,7 @@ from app.db.models import User
 from app.db.session import get_db
 from app.main import app
 from app.services.auth_service import AuthService
+from app.services.model_service import ModelService
 
 test_engine = create_engine("sqlite:///./test.db", connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
@@ -33,7 +34,11 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest.fixture(autouse=True)
-def setup_database():
+def setup_database(monkeypatch):
+    def skip_model_download(self, destination):
+        raise RuntimeError("MinIO is disabled in tests")
+
+    monkeypatch.setattr(ModelService, "_download_model", skip_model_download)
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
