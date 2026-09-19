@@ -6,6 +6,7 @@ import sys
 import time
 from typing import Any
 
+from openai import OpenAI
 import requests
 
 
@@ -15,6 +16,8 @@ MODEL = os.getenv(
 )
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 
 MAX_RETRIES = 5
 BASE_DELAY = 1.0
@@ -30,6 +33,8 @@ logging.basicConfig(
 
 logger.info(f"Using model: {MODEL}")
 logger.info(f"Using OpenRouter URL: {OPENROUTER_URL}")
+logger.info(f"Using Nvidia model: {NVIDIA_MODEL}")
+
 
 def run(command: list[str]) -> str:
     logger.info(f"Running command: {' '.join(command)}")
@@ -61,6 +66,63 @@ def load_rules() -> str:
 
 
 def call_model(prompt: str) -> str:
+    nvidia_api_key = os.getenv("NVIDIA_API_KEY")
+
+    if nvidia_api_key:
+        nvidia_client = OpenAI(
+            base_url=NVIDIA_BASE_URL,
+            api_key=nvidia_api_key,
+        )
+
+        delay = BASE_DELAY
+
+        for attempt in range(MAX_RETRIES):
+            logger.info(
+                f"Calling Nvidia model (attempt {attempt + 1}/{MAX_RETRIES})..."
+            )
+
+            try:
+                completion = nvidia_client.chat.completions.create(
+                    model=NVIDIA_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.1,
+                    top_p=0.95,
+                    max_tokens=16384,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": True}},
+                    stream=True,
+                )
+
+                response_parts: list[str] = []
+                for chunk in completion:
+                    if not chunk.choices:
+                        continue
+
+                    content = chunk.choices[0].delta.content
+                    if content is not None:
+                        response_parts.append(content)
+
+                return "".join(response_parts)
+            except Exception as error:
+                if attempt == MAX_RETRIES - 1:
+                    logger.warning(
+                        "Nvidia retries exhausted; falling back to OpenRouter: %s",
+                        error,
+                    )
+                    break
+
+                logger.warning(
+                    f"Nvidia request failed, retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}): {error}"
+                )
+                time.sleep(delay)
+                delay = min(delay * 2, MAX_DELAY)
+    else:
+        logger.warning("NVIDIA_API_KEY is not set; skipping Nvidia review")
+
+    logger.info("Calling OpenRouter after Nvidia retry threshold...")
     delay = BASE_DELAY
 
     for attempt in range(MAX_RETRIES):

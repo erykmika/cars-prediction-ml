@@ -26,10 +26,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install openai requests
 
       - name: Run AI Review
         env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
