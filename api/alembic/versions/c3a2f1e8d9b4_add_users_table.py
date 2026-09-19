@@ -38,12 +38,15 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_users_username"), "users", ["username"], unique=True)
 
-    # Insert example user: CARS_PREDICTION_USER / 123
+    # Insert or update example user: CARS_PREDICTION_USER / 123
     hashed_password = pwd_context.hash("123")
     op.execute(
         sa.text(
             "INSERT INTO users (username, hashed_password, is_active) "
-            "VALUES (:username, :hashed_password, :is_active)"
+            "VALUES (:username, :hashed_password, :is_active) "
+            "ON CONFLICT (username) DO UPDATE SET "
+            "hashed_password = EXCLUDED.hashed_password, "
+            "is_active = EXCLUDED.is_active"
         ).bindparams(
             username="CARS_PREDICTION_USER", hashed_password=hashed_password, is_active=True
         )
