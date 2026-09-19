@@ -11,6 +11,5 @@ build/
 *.egg-info/
 .idea
 *.joblib
-!training/models/*.joblib
 *.db
 *.sql
