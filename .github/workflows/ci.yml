@@ -35,7 +35,7 @@ jobs:
         run: uv run pytest -q
 
   training:
-    name: Lint training
+    name: Lint and test training
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,3 +57,6 @@ jobs:
 
       - name: Lint training
         run: uv run ruff check .
+      
+      - name: Test training
+        run: uv run pytest -q

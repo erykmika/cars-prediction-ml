@@ -272,7 +272,7 @@ def build_cross_validation_metrics(
 
         summary[metric_key] = {
             "mean": float(np.mean(metric_values)),
-            "std": float(np.std(metric_values)),
+            "std": float(np.std(metric_values, ddof=1)),
         }
 
     return summary

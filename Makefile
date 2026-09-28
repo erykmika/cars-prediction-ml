@@ -30,6 +30,7 @@ check-all:
 	@echo "Checking (formatting and linting) all code"
 	$(MAKE) -C training format
 	$(MAKE) -C training lint
+	$(MAKE) -C training test
 	$(MAKE) -C api format
 	$(MAKE) -C api lint
 	$(MAKE) -C api test

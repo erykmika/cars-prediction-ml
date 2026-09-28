@@ -11,6 +11,9 @@ help:
 install: ## Install training dependencies
 	uv sync
 
+test:
+	uv run --extra dev pytest -q
+
 fetch-data: ## Download the latest Kaggle dataset version
 	uv run python -m src.kaggle
 
