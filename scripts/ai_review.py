@@ -10,14 +10,14 @@ from openai import OpenAI
 import requests
 
 
-MODEL = os.getenv(
+OPENROUTER_MODEL = os.getenv(
     "REVIEW_MODEL",
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3.5-super-vl:free",
 )
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
+NVIDIA_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
 MAX_RETRIES = 5
 BASE_DELAY = 1.0
@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 
 
-logger.info(f"Using model: {MODEL}")
+logger.info(f"Using model: {OPENROUTER_MODEL}")
 logger.info(f"Using OpenRouter URL: {OPENROUTER_URL}")
 logger.info(f"Using Nvidia model: {NVIDIA_MODEL}")
 
@@ -136,7 +136,7 @@ def call_model(prompt: str) -> str:
                 "Content-Type": "application/json",
             },
             json={
-                "model": MODEL,
+                "model": OPENROUTER_MODEL,
                 "temperature": 0.1,
                 "messages": [
                     {
