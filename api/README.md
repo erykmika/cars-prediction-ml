@@ -62,11 +62,17 @@ docker build -t cars-prediction-api -f api/Dockerfile .
 ```
 
 The API requires a PostgreSQL database, so the simplest way to run the full stack (PostgreSQL +
-the API) is Docker Compose:
+the API + MinIO + frontend) is Docker Compose:
 
 ```bash
 make docker-compose-up
 ```
+
+This starts:
+- `db` - PostgreSQL on port 5432
+- `minio` - MinIO on ports 9000/9001
+- `api` - FastAPI on port 8000
+- `frontend` - React app on port 3000
 
 On startup the API downloads the trained model from the MinIO `models` bucket, loads it, and runs
 the Alembic migrations before starting the service. It retries while MinIO or the model object is

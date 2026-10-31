@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -90,7 +90,7 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(response: Response) -> dict:
-    response.delete_cookie(key="refresh_token", httponly=True, secure=False, samesite="lax")
+    response.delete_cookie(key="refresh_token", path="/", samesite="lax")
     return {"detail": "Logged out"}
 
 

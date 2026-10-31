@@ -23,6 +23,11 @@ cars-prediction-ml/
 │   ├── Dockerfile
 │   ├── Makefile
 │   └── docker-entrypoint.sh
+├── frontend/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
 └── training/
     ├── data/
     ├── metrics/
@@ -66,7 +71,9 @@ make lint
 make docker-compose-up
 ```
 
-`make docker-compose-up` builds the API image and starts it together with PostgreSQL and MinIO. The
+The frontend is available at `http://localhost:3000` when running via docker-compose.
+
+`make docker-compose-up` builds the API and frontend images and starts them together with PostgreSQL and MinIO. The
 training command uploads the artifact to MinIO, and the API downloads it during application
 startup before running its Alembic migrations. The API loads
 `models/poland_used_cars_linear_regression.joblib` and exposes:
