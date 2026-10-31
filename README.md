@@ -2,11 +2,12 @@
 
 Machine learning project for training and serving Poland used-car price predictions.
 
-The repository is split into two independent parts:
+The repository has three main parts:
 
 - `training/` trains a scikit-learn `LinearRegression` pipeline on the Kaggle Poland used cars
   offers dataset.
 - `api/` serves the trained model through a FastAPI prediction service.
+- `frontend/` React + TypeScript + Vite UI for authentication and predictions.
 
 ## Project Layout
 
