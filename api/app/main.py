@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
@@ -8,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app.api.endpoints import auth, health, predict
 from app.config import get_settings
 from app.db.session import init_db
-from app.external.minio import MinioClient
+from app.external.minio import MinioClient, MinioConfig
 from app.services.model_service import (
     InvalidInputShapeError,
     ModelInferenceError,
@@ -19,12 +20,25 @@ from app.services.model_service import (
 logger = getLogger(__name__)
 
 
+def get_minio_config() -> MinioConfig:
+    return MinioConfig(
+        endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+        secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
+        bucket=os.getenv("MINIO_BUCKET", "models"),
+        secure=os.getenv("MINIO_SECURE", "true").lower() == "true",
+        retries=max(1, int(os.getenv("MINIO_RETRIES", "10"))),
+        initial_delay=float(os.getenv("MINIO_INITIAL_DELAY_SECONDS", "1.0")),
+        max_delay=float(os.getenv("MINIO_MAX_DELAY_SECONDS", "30.0")),
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     model_service = ModelService(
         model_path=settings.model_path,
-        minio_client=MinioClient(),
+        minio_client=MinioClient(get_minio_config()),
         model_version=settings.model_version,
     )
     model_service.load_model()
