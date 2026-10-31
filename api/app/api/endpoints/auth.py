@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from app.api.schemas.auth import LoginRequest, RefreshRequest, Token, UserResponse
+from app.api.schemas.auth import LoginRequest, Token, UserResponse
 from app.db.models import User
 from app.db.session import get_db
 from app.services.auth_service import AuthService, get_auth_service
@@ -34,6 +34,7 @@ async def login(
     payload: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    response: Response,
 ) -> Token:
     user = auth_service.authenticate_user(db, payload.username, payload.password)
     if not user:
@@ -44,23 +45,53 @@ async def login(
         )
 
     access_token, refresh_token = auth_service.create_login_tokens(user.username)
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,
+    )
+    return Token(access_token=access_token, refresh_token="")
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    payload: RefreshRequest,
     db: Annotated[Session, Depends(get_db)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> Token:
-    tokens = auth_service.refresh_tokens(db, payload.refresh_token)
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    tokens = auth_service.refresh_tokens(db, refresh_token)
     if not tokens:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return Token(access_token=tokens[0], refresh_token=tokens[1])
+    new_access, new_refresh = tokens
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,
+    )
+    return Token(access_token=new_access, refresh_token="")
+
+
+@router.post("/logout")
+async def logout(response: Response) -> dict:
+    response.delete_cookie(key="refresh_token", path="/", samesite="lax")
+    return {"detail": "Logged out"}
 
 
 @router.get("/me", response_model=UserResponse)
