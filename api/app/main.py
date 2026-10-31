@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from logging import getLogger
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.endpoints import auth, health, predict
@@ -54,6 +55,14 @@ app = FastAPI(
     title="Cars Prediction ML API",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://frontend"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 logger.info("Starting Cars Prediction ML API...")
