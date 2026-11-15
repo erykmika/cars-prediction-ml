@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.db.models import Prediction
 from app.main import app
+from app.services.auth_service import AuthService
 from tests.conftest import TestingSessionLocal
 
 
@@ -61,6 +62,20 @@ def test_predict_returns_401_without_auth() -> None:
         response = client.post("/predict", json={"features": [10, 15]})
 
     assert response.status_code == 401
+
+
+def test_predict_does_not_require_user_lookup() -> None:
+    access_token = AuthService().create_login_tokens("deleted-user")[0]
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    with TestClient(app) as client:
+        app.state.model_service.model = DummyModel()
+        app.state.model_service.load_error = None
+
+        response = client.post("/predict", json={"features": [10, 15]}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"prediction": 25}
 
 
 def test_predict_returns_503_when_model_is_missing(auth_headers) -> None:
