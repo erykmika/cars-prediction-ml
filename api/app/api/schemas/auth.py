@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -10,7 +12,7 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: str
     exp: int
-    type: str
+    type: Literal["access", "refresh"]
 
 
 class LoginRequest(BaseModel):

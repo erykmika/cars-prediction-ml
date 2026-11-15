@@ -1,6 +1,13 @@
-from fastapi.testclient import TestClient
+from unittest.mock import Mock
 
+import sqlalchemy
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.api.endpoints.auth import require_logged_in
+from app.db.models import User
 from app.main import app
+from app.services.auth_service import AuthService
 
 
 def test_health_endpoint_public() -> None:
@@ -79,3 +86,29 @@ def test_get_me_without_auth() -> None:
         response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+def test_is_logged_in_accepts_only_valid_access_tokens() -> None:
+    auth_service = AuthService()
+    access_token, refresh_token = auth_service.create_login_tokens("testuser")
+
+    assert auth_service.is_logged_in(access_token) is True
+    assert auth_service.is_logged_in(refresh_token) is False
+    assert auth_service.is_logged_in("invalid-token") is False
+
+
+def test_require_logged_in_does_not_look_up_user(monkeypatch) -> None:
+    auth_service = AuthService()
+    access_token = auth_service.create_login_tokens("testuser")[0]
+    user_lookup = Mock(side_effect=AssertionError("User lookup should not be called"))
+    query = Mock(side_effect=AssertionError("Database query should not be called"))
+    select = Mock(side_effect=AssertionError("SQL select should not be called"))
+    monkeypatch.setattr(auth_service, "get_current_user", user_lookup)
+    monkeypatch.setattr(Session, "query", query)
+    monkeypatch.setattr(sqlalchemy, "select", select)
+
+    require_logged_in(token=access_token, auth_service=auth_service)
+
+    user_lookup.assert_not_called()
+    assert not any(User in call.args for call in query.call_args_list)
+    assert not any(User in call.args for call in select.call_args_list)

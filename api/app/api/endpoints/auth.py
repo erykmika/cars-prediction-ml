@@ -29,6 +29,18 @@ async def get_current_user(
     return user
 
 
+def require_logged_in(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> None:
+    if not auth_service.is_logged_in(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 @router.post("/login", response_model=Token)
 async def login(
     payload: LoginRequest,

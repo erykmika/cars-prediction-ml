@@ -3,8 +3,10 @@ from typing import Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.api.schemas.auth import TokenPayload
 from app.config import get_settings
 from app.db.models import User
 
@@ -50,13 +52,13 @@ class AuthService:
         )
         return encoded_jwt
 
-    def _decode_token(self, token: str) -> dict[str, Any] | None:
+    def _decode_token(self, token: str) -> TokenPayload | None:
         try:
             payload = jwt.decode(
                 token, self._settings.jwt_secret_key, algorithms=[self._settings.jwt_algorithm]
             )
-            return payload
-        except JWTError:
+            return TokenPayload.model_validate(payload)
+        except JWTError, ValidationError:
             return None
 
     def _create_token_pair(self, username: str) -> tuple[str, str]:
@@ -74,24 +76,22 @@ class AuthService:
 
     def get_current_user(self, db: Session, token: str) -> User | None:
         token_data = self._decode_token(token)
-        if not token_data or token_data.get("type") != "access":
+        if not token_data or token_data.type != "access":
             return None
-        username: str = token_data.get("sub")
-        if username is None:
-            return None
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.username == token_data.sub).first()
         if user is None or not user.is_active:
             return None
         return user
 
+    def is_logged_in(self, token: str) -> bool:
+        token_data = self._decode_token(token)
+        return token_data is not None and token_data.type == "access"
+
     def refresh_tokens(self, db: Session, refresh_token: str) -> tuple[str, str] | None:
         token_data = self._decode_token(refresh_token)
-        if not token_data or token_data.get("type") != "refresh":
+        if not token_data or token_data.type != "refresh":
             return None
-        username = token_data.get("sub")
-        if not username:
-            return None
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.username == token_data.sub).first()
         if not user or not user.is_active:
             return None
         return self._create_token_pair(user.username)
